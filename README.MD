@@ -1,6 +1,6 @@
 # School Submission Tracker API - VERSION 1
 
-A serverless AWS API that helps Education Management Information System (EMIS) officers track school data submissions efficiently — comparing submitted schools list against a master list in seconds instead of 30+ minutes of manual checking.
+A serverless AWS REST API that helps Education Management Information System (EMIS) officers track school data submissions efficiently — comparing submitted schools list against a master list in seconds instead of 30+ minutes of manual checking.
 
 ## Problem Statement
 EMIS officers collect data from 165+ schools via Google Forms. Manually checking which schools have submitted and which schools have not submitted(missing schools) their termly data is:
@@ -18,9 +18,7 @@ EMIS officers collect data from 165+ schools via Google Forms. Manually checking
 * Send reminders to those who haven't submitted
 
 
->- **Time required**: 30-45 minutes per check
->- **Frequency**: 3-4 times during each collection period
->- **Annual time waste**: 25+ hours of tedious, error-prone work
+>- **Time required**: 30-45 minutes per checK  **Frequency**: 3-4 times during each collection period **Annual time waste**: 25+ hours of tedious, error-prone work
 
 ## Solution - School Submission Tracker API
 This API automates the entire process:
@@ -32,7 +30,7 @@ This API automates the entire process:
 - ✅ Provides actionable reports
 
 >**Time required**: 2 sceconds per check
-**Accuracy**: 100% no counting errors
+**Accuracy**: 100%, no counting errors
 **Annual time saved**: 25+ hours 
 
 Key Features:
@@ -52,7 +50,7 @@ The API has two main endpoints:
 - **Authentication**: None required
 
 2. `POST /check-submissions` :
-- **Description**: Check which schools have submitted their termly data and identify school that have not (missing schoolsschools)
+- **Description**: Check which schools have submitted their termly data and identify school that have not (missing schools)
 - **Authentication**: API key required (x-api-key header)
 
 ** Input
@@ -78,7 +76,6 @@ For local development, the API also supports running without requiring API keys.
 Only **$0.41/month** for Secrets Manager. Everything else runs on AWS Free Tier!
 
 ## Project Structure
-
 ```
 .
 ├── src/
@@ -150,7 +147,7 @@ curl http://127.0.0.1:3000/
 ### 5. (Optional) Test locally WITH real authentication
 
 Since `DISABLE_AUTH` defaults to `"false"` in `template.yaml`, you can test the real
-auth flow locally just by running `sam local start-api` **without** the `--env-vars` flag at all — no config file needed. As long as you have a real secret already created in AWS because Secrets Manager isn't mocked locally, so this calls the real AWS API, authentication will work exactly as it does in production:
+auth flow locally just by running `sam local start-api` **without** the `--env-vars` flag at all — no config file needed. As long as you have a real secret already created in AWS, authentication will work exactly as it does in production (Secrets Manager isn't mocked locally, so this calls the real AWS API).
 
 #### How to create the secret in Secrets Manager
 
@@ -211,15 +208,17 @@ Answer the prompts:
 - #Preserves the state of previously provisioned resources when an operation fails
 - Disable rollback [y/N]: `n`
 - Save arguments to configuration file [Y/n]: `y`
-- SAM configuration file [samconfig. toml]: `press enter1
+- SAM configuration file [samconfig.toml]: `press enter`
 - SAM configuration environment [default]: `press enter`
 
 
 
 ### 3. Get your API URL from the deployment output or from the command line
+Your API URL is shown at the end of the `sam deploy` output. If you need to look it up again later, use the command below 
+- **make sure to replace the stack name with the one you actually used** during `sam deploy --guided`:
 
 ```bash
-aws cloudformation describe-stacks 
+aws cloudformation describe-stacks --stack-name YOUR-STACK-NAME
 ```
 - check the output at the end for the API URL
 
@@ -236,7 +235,7 @@ curl -X POST https://YOUR-API-URL/Prod/check-submissions \
   -d "@test_data.json"
 ```
 
-### 5r;'y. Verify the fail-closed security behavior (optional)
+### 5. Verify the fail-closed security behavior (optional)
 
 ```bash
 # Should return 401 - no key provided

@@ -1,0 +1,12 @@
+{
+  "master_schools": [
+    "SCHOOL A", "SCHOOL B", "SCHOOL C", "SCHOOL D", "SCHOOL E",
+    "SCHOOL F", "SCHOOL G", "SCHOOL H", "SCHOOL I", "SCHOOL J",
+    "SCHOOL K", "SCHOOL L", "SCHOOL M", "SCHOOL N", "SCHOOL O",
+    "SCHOOL P", "SCHOOL Q", "SCHOOL R"
+  ],
+  "submitted_schools": [
+    "SCHOOL A", "SCHOOL B", "SCHOOL C", "SCHOOL D", "SCHOOL E",
+    "SCHOOL E", "SCHOOL F", "SCHOOL G", "SCHOOL H", "SCHOOL I"
+  ]
+}

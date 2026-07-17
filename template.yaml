@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: School Submission Tracker API with Secrets Manager
+
+# Parameters
+Parameters:
+  SecretName:
+    Type: String
+    Default: 'school-tracker/api-keys'
+    Description: Name of the secret in Secrets Manager containing API keys
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.11
+    MemorySize: 256
+    Environment:
+      Variables:
+        LOG_LEVEL: INFO
+        SECRET_NAME: !Ref SecretName
+        DISABLE_AUTH: "false"   # Default: auth ON. Override to "true" only for local testing via --env-vars
+
+Resources:
+  # API Gateway with Throttling and Security
+  SchoolTrackerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: SchoolTrackerApi
+      StageName: Prod
+      TracingEnabled: true
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+          MetricsEnabled: true
+      # CORS Configuration
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        ApiKeyRequired: false
+  
+  # Lambda Function
+  SchoolTrackerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SchoolSubmissionTracker
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Description: Tracks school submissions with Secrets Manager integration
+      # IAM Policies
+      Policies:
+        - Statement:
+          - Sid: ReadSecretsManagerSecret
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:school-tracker/api-keys*'
+      Events:
+        # GET / - API Documentation
+        GetApiInfo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /
+            Method: get
+        
+        # POST /check-submissions - Main endpoint
+        CheckSubmissions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /check-submissions
+            Method: post
+        
+        # OPTIONS for CORS preflight
+        OptionsCheckSubmissions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /check-submissions
+            Method: options
+
+  # CloudWatch Log Group with retention
+  SchoolTrackerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${SchoolTrackerFunction}'
+      RetentionInDays: 7
+
+  # CloudWatch Alarm for high error rate
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: SchoolTracker-HighErrorRate
+      AlarmDescription: Alert when error rate is high (possible attack)
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 100
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SchoolTrackerFunction
+      TreatMissingData: notBreaching
+
+Outputs:
+  SchoolTrackerApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Export:
+      Name: SchoolTrackerApiUrl
+  
+  SchoolTrackerFunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt SchoolTrackerFunction.Arn
+    Export:
+      Name: SchoolTrackerFunctionArn
+  
+  ApiDocumentation:
+    Description: "Get API documentation at this endpoint"
+    Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  
+  CheckSubmissionsEndpoint:
+    Description: "POST endpoint to check school submissions"
+    Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/check-submissions"
+  
+  SecretNameOutput:
+    Description: "Secrets Manager secret name for API keys"
+    Value: !Ref SecretName

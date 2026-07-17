@@ -260,6 +260,7 @@ curl -X POST https://YOUR-API-URL/Prod/check-submissions \
 ```bash
 sam delete
 ```
+---
 
 2. Then remove the secret:
 Make sure to use the secret name you created
@@ -299,10 +300,11 @@ aws secretsmanager delete-secret \
 ---
 ## Roadmap
 
-- [ Phase 2: DynamoDB integration for historical tracking](https://medium.com/@gloriaboakye/adding-file-uploads-30-day-history-to-my-school-tracker-api-f8972d49a501) 
+- [x] [Phase 2: DynamoDB integration for historical tracking](https://medium.com/@gloriaboakye/adding-file-uploads-30-day-history-to-my-school-tracker-api-f8972d49a501)
 - [ ] Phase 3 - Coming Soon: Email reminder automation
-- [ ] Phase 3 -Coming soon: Web dashboard interface
+- [ ] Phase 3 - Coming soon: Web dashboard interface
 - [ ] Phase 4: Direct Google Forms API integration
+
 
 ## Contributing
 

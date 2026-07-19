@@ -1,0 +1,5 @@
+# AWS SDK
+boto3==1.34.19
+
+# No other dependencies needed!
+# Lambda runtime includes: json, csv, io, datetime, os, base64, collections, uuid

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: School Submission Tracker API with Secrets Manager
+Description: School Submission Tracker API with CSV Upload and DynamoDB History
 
 # Parameters
 Parameters:
@@ -18,9 +18,43 @@ Globals:
       Variables:
         LOG_LEVEL: INFO
         SECRET_NAME: !Ref SecretName
-        DISABLE_AUTH: "false"   # Default: auth ON. Override to "true" only for local testing via --env-vars
+        HISTORY_TABLE_NAME: !Ref SubmissionHistoryTable
+        DISABLE_AUTH: "false"
 
 Resources:
+  # DynamoDB Table for Submission History (30-day retention)
+  SubmissionHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SchoolSubmissionHistory
+      BillingMode: PAY_PER_REQUEST  # Auto-scaling, no capacity planning needed
+      AttributeDefinitions:
+        - AttributeName: check_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: check_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      # Global Secondary Index for querying by date
+      GlobalSecondaryIndexes:
+        - IndexName: TimestampIndex
+          KeySchema:
+            - AttributeName: timestamp
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Purpose
+          Value: SchoolSubmissionTracking
+        - Key: Environment
+          Value: Production
+
   # API Gateway with Throttling and Security
   SchoolTrackerApi:
     Type: AWS::Serverless::Api
@@ -28,6 +62,9 @@ Resources:
       Name: SchoolTrackerApi
       StageName: Prod
       TracingEnabled: true
+      # Increased limits for file uploads
+      BinaryMediaTypes:
+        - 'multipart/form-data'
       MethodSettings:
         - ResourcePath: '/*'
           HttpMethod: '*'
@@ -49,7 +86,7 @@ Resources:
       FunctionName: SchoolSubmissionTracker
       CodeUri: src/
       Handler: app.lambda_handler
-      Description: Tracks school submissions with Secrets Manager integration
+      Description: Tracks school submissions with CSV upload and DynamoDB history
       # IAM Policies
       Policies:
         - Statement:
@@ -58,6 +95,16 @@ Resources:
             Action:
               - secretsmanager:GetSecretValue
             Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:school-tracker/api-keys*'
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+            Resource:
+              - !GetAtt SubmissionHistoryTable.Arn
+              - !Sub '${SubmissionHistoryTable.Arn}/index/*'
       Events:
         # GET / - API Documentation
         GetApiInfo:
@@ -67,7 +114,7 @@ Resources:
             Path: /
             Method: get
         
-        # POST /check-submissions - Main endpoint
+        # POST /check-submissions - JSON endpoint (backward compatible)
         CheckSubmissions:
           Type: Api
           Properties:
@@ -75,12 +122,42 @@ Resources:
             Path: /check-submissions
             Method: post
         
+        # POST /upload-csv - NEW: CSV file upload endpoint
+        UploadCSV:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /upload-csv
+            Method: post
+        
+        # GET /history - NEW: View recent submission checks
+        GetHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /history
+            Method: get
+        
         # OPTIONS for CORS preflight
         OptionsCheckSubmissions:
           Type: Api
           Properties:
             RestApiId: !Ref SchoolTrackerApi
             Path: /check-submissions
+            Method: options
+        
+        OptionsUploadCSV:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /upload-csv
+            Method: options
+        
+        OptionsHistory:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SchoolTrackerApi
+            Path: /history
             Method: options
 
   # CloudWatch Log Group with retention
@@ -121,13 +198,27 @@ Outputs:
     Export:
       Name: SchoolTrackerFunctionArn
   
+  DynamoDBTableName:
+    Description: "DynamoDB table for submission history"
+    Value: !Ref SubmissionHistoryTable
+    Export:
+      Name: SchoolTrackerHistoryTable
+  
   ApiDocumentation:
     Description: "Get API documentation at this endpoint"
     Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   
   CheckSubmissionsEndpoint:
-    Description: "POST endpoint to check school submissions"
+    Description: "POST endpoint to check school submissions (JSON)"
     Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/check-submissions"
+  
+  UploadCSVEndpoint:
+    Description: "POST endpoint to upload CSV file (NEW)"
+    Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/upload-csv"
+  
+  HistoryEndpoint:
+    Description: "GET endpoint to view submission history (NEW)"
+    Value: !Sub "https://${SchoolTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/history"
   
   SecretNameOutput:
     Description: "Secrets Manager secret name for API keys"

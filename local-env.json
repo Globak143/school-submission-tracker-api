@@ -1,5 +1,6 @@
 {
-  "Parameters": {
-    "DISABLE_AUTH": "true"
+    "SchoolTrackerFunction": {
+      "HISTORY_TABLE_NAME": "SchoolSubmissionHistory",
+      "DISABLE_AUTH": "true"
+    }
   }
-}

@@ -13,6 +13,7 @@ api-keys.txt
 **/*secret*.json
 **/*credentials*
 
+
 # Python
 __pycache__/
 *.pyc
@@ -32,4 +33,4 @@ env/
 Thumbs.db
 
 # Logs
-*.log
+*.logdynamodb-data/
